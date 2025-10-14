@@ -278,8 +278,8 @@ OTP_EXPIRY_MINUTES=5
 # Create PostgreSQL database
 createdb your_database
 
-# Run the initial migration SQL script
-psql -U your_username -d your_database -f database/initial_migrate.sql
+# Run Laravel migrations
+php artisan migrate
 ```
 
 6. **Start the development server:**
@@ -518,7 +518,10 @@ laravel-clean-architecture-start/
 │       └── response_helper.php
 │
 ├── database/
-│   └── initial_migrate.sql          # PostgreSQL schema
+│   ├── migrations/                  # Database migrations
+│   │   ├── 0001_01_01_000000_create_users_table.php
+│   │   └── 0001_01_01_000001_create_otp_verifications_table.php
+│   └── seeders/                     # Database seeders
 │
 ├── routes/
 │   └── api.php                      # API routes
