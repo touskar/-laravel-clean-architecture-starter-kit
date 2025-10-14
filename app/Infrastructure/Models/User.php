@@ -2,8 +2,8 @@
 
 namespace App\Infrastructure\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Foundation\Auth\User as Authenticatable;
 use PHPOpenSourceSaver\JWTAuth\Contracts\JWTSubject;
 use Symfony\Component\Uid\Ulid;
 
@@ -24,7 +24,7 @@ use Symfony\Component\Uid\Ulid;
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  */
-class User extends Model implements JWTSubject
+class User extends Authenticatable implements JWTSubject
 {
     protected $table = 'users';
 
