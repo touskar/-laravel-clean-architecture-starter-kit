@@ -287,6 +287,69 @@ php artisan migrate
 php artisan serve
 ```
 
+## 🔍 Reusable Filter System
+
+This starter kit includes a **powerful reusable filter system** for list endpoints with:
+
+- ✅ **Pagination** with `hasMore` for infinite scroll
+- ✅ **Full-text search** across multiple fields
+- ✅ **Advanced filtering** with operators (`=`, `in`, `gt`, `gte`, `lt`, `lte`, `like`)
+- ✅ **Customizable sorting**
+- ✅ **Clean Architecture compliant** (filterable fields defined in Domain entities)
+
+### Quick Example
+
+```http
+GET /api/v1/users?search=john&filters[status:in]=ACTIVE,PENDING&sortBy=createdAt&page=1
+```
+
+### Response Format
+
+```json
+{
+  "success": true,
+  "data": {
+    "users": [...],
+    "pagination": {
+      "currentPage": 1,
+      "perPage": 20,
+      "total": 156,
+      "totalPages": 8,
+      "hasMore": true,
+      "hasPrevious": false
+    }
+  }
+}
+```
+
+### User Entity Searchable/Filterable Fields
+
+The `User` entity comes pre-configured with:
+
+**Searchable fields** (full-text search):
+- `name`, `firstName`, `lastName`, `email`, `username`, `phoneNumber`
+
+**Filterable fields** (exact/operator matching):
+- `status`: ACTIVE, INACTIVE, BANNED, PENDING
+- `userType`: USER, PLATFORM_ADMIN, CONTENT_CREATOR, ADVERTISER
+
+**Sortable fields**:
+- `createdAt`, `updatedAt`, `name`, `firstName`, `lastName`, `email`, `username`
+
+### Filter Operators
+
+| Operator | Example | Description |
+|----------|---------|-------------|
+| `=` (default) | `status=ACTIVE` | Exact match |
+| `in` | `status:in=ACTIVE,PENDING` | Match any value |
+| `gt` | `createdAt:gt=2024-01-01` | Greater than |
+| `gte` | `createdAt:gte=2024-01-01` | Greater than or equal |
+| `lt` | `createdAt:lt=2024-12-31` | Less than |
+| `lte` | `createdAt:lte=2024-12-31` | Less than or equal |
+| `like` | `name:like=john` | Pattern match |
+
+📚 **Full Documentation**: See [`docs/REUSABLE_FILTER_SYSTEM.md`](docs/REUSABLE_FILTER_SYSTEM.md) and [`docs/FILTER_SYSTEM_API_EXAMPLES.md`](docs/FILTER_SYSTEM_API_EXAMPLES.md)
+
 ## 📡 API Endpoints
 
 ### Authentication Endpoints
@@ -535,7 +598,91 @@ laravel-clean-architecture-start/
 
 Follow the Clean Architecture flow when adding new features:
 
-### Example: Adding a "Reset Password" Feature
+### Example 1: Adding a List Endpoint with Filters
+
+**1. Define filterable fields in your Domain Entity:**
+```php
+// app/Domain/Entities/Product.php
+use App\Domain\Traits\HasFilterableFields;
+
+class Product {
+    use HasFilterableFields;
+
+    protected static array $searchableFields = ['name', 'description', 'sku'];
+
+    protected static array $filterableFields = [
+        'category' => ['type' => 'string'],
+        'status' => [
+            'type' => 'string',
+            'allowed_values' => ['ACTIVE', 'INACTIVE']
+        ],
+        'price' => ['type' => 'float'],
+    ];
+
+    protected static array $sortableFields = ['createdAt', 'name', 'price'];
+}
+```
+
+**2. Create List Request DTO:**
+```php
+// app/Application/DTOs/Requests/ListProductsRequest.php
+class ListProductsRequest {
+    public function __construct(
+        public readonly ListQueryRequest $listQuery
+    ) {}
+
+    public static function fromArray(array $data): self {
+        return new self(ListQueryRequest::fromArray($data));
+    }
+
+    public function validate(): array {
+        return $this->listQuery->validate(
+            allowedSortFields: Product::getSortableFields(),
+            allowedFilterFields: Product::getFilterableFields()
+        );
+    }
+}
+```
+
+**3. Use QueryFilterService in Repository:**
+```php
+// app/Infrastructure/Repositories/ProductRepositoryImpl.php
+public function findAll(ListQueryRequest $listQuery): array {
+    $query = ProductModel::query()->with(['category']);
+
+    $fieldMapping = [
+        'createdAt' => 'created_at',
+        // ... map domain fields to database columns
+    ];
+
+    return $this->queryFilterService->applyFilters(
+        $query,
+        $listQuery,
+        Product::class,
+        $fieldMapping
+    );
+}
+```
+
+**4. Create Controller Method:**
+```php
+public function list(Request $request): JsonResponse {
+    $dto = ListProductsRequest::fromArray($request->all());
+    $presenter = app(ListProductsPresenter::class);
+    $useCase = app(ListProductsUseCase::class, ['presenter' => $presenter]);
+
+    $useCase->execute($dto);
+
+    return response_json($presenter->getData(), 200);
+}
+```
+
+**Usage:**
+```http
+GET /api/products?search=laptop&filters[status:in]=ACTIVE,FEATURED&sortBy=price&page=1
+```
+
+### Example 2: Adding a "Reset Password" Feature
 
 **1. Domain Layer** - Define business rules
 ```php
