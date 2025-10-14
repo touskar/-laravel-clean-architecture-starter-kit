@@ -17,5 +17,12 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // Use custom exception handler
+        $exceptions->renderable(function (Throwable $e, $request) {
+            if ($request->expectsJson() || $request->is('api/*')) {
+                $handler = app(\App\Exceptions\Handler::class);
+
+                return $handler->render($request, $e);
+            }
+        });
     })->create();

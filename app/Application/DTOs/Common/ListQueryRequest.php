@@ -76,9 +76,30 @@ class ListQueryRequest
         }
 
         // Validate filters
-        foreach ($this->filters as $field => $value) {
+        foreach ($this->filters as $filterKey => $value) {
+            // Extract field name and operator (strip operator if present)
+            $parts = explode(':', $filterKey);
+            $field = $parts[0];
+            $operator = strtolower($parts[1] ?? '='); // Normalize to lowercase
+
+            // Validate operator
+            $validOperators = ['=', 'in', 'gt', 'gte', 'lt', 'lte', 'like'];
+            if (! in_array($operator, $validOperators)) {
+                $errors["filters.{$filterKey}"] = "Filter operator '{$operator}' is not valid. Allowed: ".implode(', ', $validOperators);
+
+                continue;
+            }
+
+            // Validate empty values
+            if ($value === '' || $value === null || (is_array($value) && empty($value))) {
+                $errors["filters.{$filterKey}"] = "Filter '{$field}' value cannot be empty";
+
+                continue;
+            }
+
+            // Check if field is allowed
             if (! empty($allowedFilterFields) && ! isset($allowedFilterFields[$field])) {
-                $errors["filters.{$field}"] = "Filter field '{$field}' is not allowed";
+                $errors["filters.{$filterKey}"] = "Filter field '{$field}' is not allowed";
 
                 continue;
             }
@@ -87,24 +108,51 @@ class ListQueryRequest
             if (isset($allowedFilterFields[$field])) {
                 $fieldRules = $allowedFilterFields[$field];
 
-                // Validate allowed values (enum validation)
-                if (isset($fieldRules['allowed_values']) && ! in_array($value, $fieldRules['allowed_values'])) {
-                    $errors["filters.{$field}"] = "Filter '{$field}' must be one of: ".implode(', ', $fieldRules['allowed_values']);
-                }
+                // For 'in' operator, validate each value in the array
+                if ($operator === 'in') {
+                    $values = is_string($value) ? explode(',', $value) : (array) $value;
+                    $values = array_map('trim', $values);
 
-                // Validate type
-                if (isset($fieldRules['type'])) {
-                    $valid = match ($fieldRules['type']) {
-                        'string' => is_string($value),
-                        'int' => is_int($value) || ctype_digit($value),
-                        'float' => is_numeric($value),
-                        'bool' => is_bool($value) || in_array($value, ['true', 'false', '0', '1'], true),
-                        'date' => $this->isValidDate($value),
-                        default => true,
-                    };
+                    // Validate allowed values for 'in' operator
+                    if (isset($fieldRules['allowed_values'])) {
+                        foreach ($values as $val) {
+                            if (! in_array($val, $fieldRules['allowed_values'])) {
+                                $errors["filters.{$filterKey}"] = "Filter '{$field}' value '{$val}' must be one of: ".implode(', ', $fieldRules['allowed_values']);
+                                break;
+                            }
+                        }
+                    }
 
-                    if (! $valid) {
-                        $errors["filters.{$field}"] = "Filter '{$field}' must be of type {$fieldRules['type']}";
+                    // Validate type for each value in 'in' operator
+                    if (isset($fieldRules['type']) && ! isset($errors["filters.{$filterKey}"])) {
+                        foreach ($values as $val) {
+                            $valid = $this->validateType($val, $fieldRules['type']);
+                            if (! $valid) {
+                                $errors["filters.{$filterKey}"] = "Filter '{$field}' value '{$val}' must be of type {$fieldRules['type']}";
+                                break;
+                            }
+                        }
+                    }
+                } else {
+                    // For comparison operators, validate numeric values
+                    if (in_array($operator, ['gt', 'gte', 'lt', 'lte']) && ! is_numeric($value)) {
+                        $errors["filters.{$filterKey}"] = "Filter '{$field}' with operator '{$operator}' must have a numeric value";
+
+                        continue;
+                    }
+
+                    // Validate allowed values (enum validation) for non-'in' operators
+                    if (isset($fieldRules['allowed_values']) && ! in_array($value, $fieldRules['allowed_values'])) {
+                        $errors["filters.{$filterKey}"] = "Filter '{$field}' must be one of: ".implode(', ', $fieldRules['allowed_values']);
+                    }
+
+                    // Validate type for single value operators
+                    if (isset($fieldRules['type'])) {
+                        $valid = $this->validateType($value, $fieldRules['type']);
+
+                        if (! $valid) {
+                            $errors["filters.{$filterKey}"] = "Filter '{$field}' must be of type {$fieldRules['type']}";
+                        }
                     }
                 }
             }
@@ -175,6 +223,21 @@ class ListQueryRequest
     public function hasFilter(string $key): bool
     {
         return isset($this->filters[$key]);
+    }
+
+    /**
+     * Validate value against a specific type
+     */
+    private function validateType(mixed $value, string $type): bool
+    {
+        return match ($type) {
+            'string' => is_string($value),
+            'int' => is_int($value) || ctype_digit((string) $value),
+            'float' => is_numeric($value),
+            'bool' => is_bool($value) || in_array($value, ['true', 'false', '0', '1'], true),
+            'date' => is_string($value) && $this->isValidDate($value),
+            default => true,
+        };
     }
 
     /**

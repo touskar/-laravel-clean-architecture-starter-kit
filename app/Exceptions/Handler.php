@@ -4,6 +4,7 @@ namespace App\Exceptions;
 
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Throwable;
@@ -79,22 +80,40 @@ class Handler extends ExceptionHandler
         }
 
         // Log the error
-        \Log::error('API Exception', [
+        Log::error('API Exception', [
             'message' => $e->getMessage(),
             'file' => $e->getFile(),
             'line' => $e->getLine(),
-           // 'trace' => $e->getTraceAsString(),
+            'trace' => $e->getTraceAsString(),
             'url' => $request->fullUrl(),
             'method' => $request->method(),
             'ip' => $request->ip(),
         ]);
 
-        // Return consistent error response
-        return response()->json([
+        // Build response
+        $response = [
             'code' => 'ERROR',
             'success' => false,
             'message' => config('app.debug') ? $e->getMessage() : $message,
             'data' => null,
-        ], $statusCode);
+        ];
+
+        // Add debug information only in debug mode
+        if (config('app.debug')) {
+            $response['debug'] = [
+                'exception' => get_class($e),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => collect($e->getTrace())->take(10)->map(function ($trace) {
+                    return [
+                        'file' => $trace['file'] ?? 'unknown',
+                        'line' => $trace['line'] ?? 0,
+                        'function' => $trace['function'] ?? 'unknown',
+                    ];
+                })->toArray(),
+            ];
+        }
+
+        return response()->json($response, $statusCode);
     }
 }
