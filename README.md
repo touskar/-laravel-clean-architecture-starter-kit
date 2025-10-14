@@ -504,10 +504,80 @@ public function test_send_otp_use_case() {
 - ✅ **OTP Verification**: Phone number verification via OTP
 - ✅ **Password Hashing**: BCrypt with cost factor 12
 - ✅ **Token Hashing**: SHA-256 for session token storage
-- ✅ **Rate Limiting**: Built-in rate limiting on auth endpoints
+- ✅ **Rate Limiting**: Cache-based rate limiting (supports file, database, Redis)
 - ✅ **Input Validation**: Comprehensive DTO validation
 - ✅ **SQL Injection Protection**: Eloquent ORM with parameter binding
 - ✅ **CORS Protection**: Configurable CORS middleware
+
+### Rate Limiting
+
+This starter kit includes a **cache-agnostic rate limiting service** that prevents abuse:
+
+**Key Features:**
+- ✅ Uses Laravel's Cache abstraction (cache-agnostic)
+- ✅ Sliding window rate limiting
+- ✅ Configurable limits per endpoint
+- ✅ Automatic expiration
+- ✅ Graceful degradation (fails open if cache unavailable)
+- ✅ **Zero code changes** to switch cache stores (configuration only)
+
+**Architecture Benefits:**
+The `RateLimitService` uses Laravel's Cache facade, making it completely independent of the underlying cache implementation. Switching from file cache to Redis or any other store is purely a configuration change via the `CACHE_STORE` environment variable.
+
+**Supported Cache Stores:**
+- `file` - File-based cache (default, no setup required)
+- `redis` - Redis cache (high performance, requires Redis server)
+- `database` - Database cache (shared across servers)
+- `memcached` - Memcached (distributed caching)
+- `array` - In-memory cache (testing only)
+
+**Usage in Use Cases:**
+```php
+class SendOtpUseCase {
+    public function __construct(
+        private readonly IRateLimitService $rateLimiter
+    ) {}
+
+    public function execute(SendOtpRequest $request): void {
+        // Check rate limit: max 3 OTP requests per 60 seconds
+        if (!$this->rateLimiter->isAllowed("otp:send:{$request->phone}", 3, 60)) {
+            $this->presenter->presentError('Too many OTP requests. Please try again later.');
+            return;
+        }
+
+        // Continue with OTP generation...
+    }
+}
+```
+
+**Switching to Redis (recommended for production):**
+
+**1. Update `.env`:**
+```env
+CACHE_STORE=redis
+```
+
+**2. Install Redis (if not already installed):**
+```bash
+# macOS
+brew install redis
+brew services start redis
+pecl install redis
+
+# Ubuntu/Debian
+sudo apt install redis-server php-redis
+sudo systemctl start redis-server
+```
+
+**3. Clear caches:**
+```bash
+php artisan config:clear
+php artisan cache:clear
+```
+
+**That's it!** No code changes needed - the `RateLimitService` automatically uses the configured cache store.
+
+📚 **Complete Redis Setup Guide:** See [`docs/REDIS_SETUP.md`](docs/REDIS_SETUP.md)
 
 ## 📁 Project Structure
 
@@ -527,6 +597,7 @@ laravel-clean-architecture-start/
 │   │       ├── IAuthenticationService.php
 │   │       ├── IJwtService.php
 │   │       ├── IOtpService.php
+│   │       ├── IRateLimitService.php
 │   │       └── IRandomStringService.php
 │   │
 │   ├── Application/                 # Application logic layer
@@ -556,6 +627,7 @@ laravel-clean-architecture-start/
 │   │   │   ├── AuthenticationServiceImpl.php
 │   │   │   ├── JwtServiceImpl.php
 │   │   │   ├── OtpServiceImpl.php
+│   │   │   ├── RateLimitService.php
 │   │   │   └── RandomStringServiceImpl.php
 │   │   └── Mappers/                 # Entity ↔ Model conversion
 │   │       ├── UserMapper.php
