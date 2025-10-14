@@ -30,13 +30,6 @@ class AuthController extends Controller
         try {
             \DB::beginTransaction();
 
-            // DEBUG - Check what sendOtp sees
-            \Log::info('SendOtp Request Debug', [
-                'input' => $request->input(),
-                'all' => $request->all(),
-                'content_length' => strlen($request->getContent())
-            ]);
-
             // Parse request to DTO
             $dto = SendOtpRequest::fromArray($request->all());
 
@@ -127,23 +120,11 @@ class AuthController extends Controller
         try {
             \DB::beginTransaction();
 
-            // Get raw content
-            $rawContent = $request->getContent();
-
-            // Parse JSON
-            $data = json_decode($rawContent, true) ?? [];
-
-            // DEBUG
-            \Log::info('CompleteRegistration Request Debug', [
-                'raw_content_length' => strlen($rawContent),
-                'raw_content' => $rawContent,
-                'json_decode_error' => json_last_error_msg(),
-                'parsed_data' => $data
-            ]);
-
             // Add IP address and user agent from HTTP request metadata
-            $data['ipAddress'] = $request->ip();
-            $data['userAgent'] = $request->userAgent();
+            $data = array_merge($request->all(), [
+                'ipAddress' => $request->ip(),
+                'userAgent' => $request->userAgent()
+            ]);
 
             // Parse request to DTO
             $dto = CompleteRegistrationRequest::fromArray($data);

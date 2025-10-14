@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('username')->unique();
             $table->string('email')->unique();
             $table->string('phone', 50)->unique();
-            $table->string('password_hash');
+            $table->string('password_hash')->nullable();
             $table->string('first_name')->nullable();
             $table->string('last_name')->nullable();
             $table->string('user_type', 50)->default('USER'); // USER, ADMIN, CONTENT_CREATOR, ADVERTISER
