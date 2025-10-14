@@ -20,7 +20,7 @@ return new class extends Migration
             $table->string('password_hash')->nullable();
             $table->string('first_name')->nullable();
             $table->string('last_name')->nullable();
-            $table->string('user_type', 50)->default('USER'); // USER, ADMIN, CONTENT_CREATOR, ADVERTISER
+            $table->string('user_type', 50)->default('USER'); // USER, PLATFORM_ADMIN
             $table->string('status', 50)->default('ACTIVE'); // ACTIVE, INACTIVE, SUSPENDED
             $table->timestamp('email_verified_at')->nullable();
             $table->timestamp('phone_verified_at')->nullable();

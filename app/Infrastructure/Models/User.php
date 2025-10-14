@@ -3,43 +3,26 @@
 namespace App\Infrastructure\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use PHPOpenSourceSaver\JWTAuth\Contracts\JWTSubject;
 use Symfony\Component\Uid\Ulid;
 
 /**
- * Modèle User - Utilisateur de la plateforme
+ * User Model - Platform user
  *
  * @property string $id (ULID)
- * @property string $name
- * @property string $first_name
- * @property string $last_name
- * @property string $email
  * @property string $username
- * @property string $phone_number
- * @property string|null $password
- * @property string|null $address
- * @property string $user_type (PLATFORM_ADMIN, ADVERTISER, CONTENT_CREATOR)
- * @property string $status (ACTIVE, DELETED, DISABLED)
- * @property string $country_id
- * @property string|null $created_by_id
- * @property string|null $advertiser_company_id
- * @property string|null $content_creator_id
- * @property string|null $owned_advertiser_company_id
- * @property string|null $owned_content_creator_id
+ * @property string $email
+ * @property string $phone
+ * @property string|null $password_hash
+ * @property string|null $first_name
+ * @property string|null $last_name
+ * @property string $user_type (USER, PLATFORM_ADMIN)
+ * @property string $status (ACTIVE, INACTIVE, SUSPENDED)
+ * @property \Carbon\Carbon|null $email_verified_at
+ * @property \Carbon\Carbon|null $phone_verified_at
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
- *
- * Indexes:
- * - idx_user_email on email (unique)
- * - idx_user_username on username (unique)
- * - idx_user_status on status
- * - idx_user_type on user_type
- * - idx_user_country on country_id
- * - idx_user_created_at on created_at
  */
 class User extends Model implements JWTSubject
 {
@@ -49,29 +32,25 @@ class User extends Model implements JWTSubject
     public $incrementing = false;
 
     protected $fillable = [
-        'name',
+        'username',
+        'email',
+        'phone',
+        'password_hash',
         'first_name',
         'last_name',
-        'email',
-        'username',
-        'phone_number',
-        'password',
-        'address',
         'user_type',
         'status',
-        'country_id',
-        'created_by_id',
-        'advertiser_company_id',
-        'content_creator_id',
-        'owned_advertiser_company_id',
-        'owned_content_creator_id',
+        'email_verified_at',
+        'phone_verified_at',
     ];
 
     protected $hidden = [
-        'password',
+        'password_hash',
     ];
 
     protected $casts = [
+        'email_verified_at' => 'datetime',
+        'phone_verified_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -89,84 +68,14 @@ class User extends Model implements JWTSubject
 
     // Relations
 
-    public function country(): BelongsTo
-    {
-        return $this->belongsTo(Country::class, 'country_id');
-    }
-
-    public function createdBy(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'created_by_id');
-    }
-
-    public function advertiserCompany(): BelongsTo
-    {
-        return $this->belongsTo(AdvertiserCompany::class, 'advertiser_company_id');
-    }
-
-    public function contentCreator(): BelongsTo
-    {
-        return $this->belongsTo(ContentCreator::class, 'content_creator_id');
-    }
-
-    public function ownedAdvertiserCompany(): HasOne
-    {
-        return $this->hasOne(AdvertiserCompany::class, 'owner_user_id');
-    }
-
-    public function ownedContentCreator(): HasOne
-    {
-        return $this->hasOne(ContentCreator::class, 'owner_user_id');
-    }
-
-    public function roles(): BelongsToMany
-    {
-        return $this->belongsToMany(Role::class, 'user_roles', 'user_id', 'role_id');
-    }
-
-    public function createdUsers(): HasMany
-    {
-        return $this->hasMany(User::class, 'created_by_id');
-    }
-
     public function sessions(): HasMany
     {
         return $this->hasMany(Session::class, 'user_id');
     }
 
-    public function otps(): HasMany
+    public function otpVerifications(): HasMany
     {
-        return $this->hasMany(Otp::class, 'user_id');
-    }
-
-    public function createdCountries(): HasMany
-    {
-        return $this->hasMany(Country::class, 'created_by_id');
-    }
-
-    public function createdCampaigns(): HasMany
-    {
-        return $this->hasMany(Campaign::class, 'created_by_id');
-    }
-
-    public function advertiserCompanyMemberships(): BelongsToMany
-    {
-        return $this->belongsToMany(
-            AdvertiserCompany::class,
-            'advertiser_company_members',
-            'user_id',
-            'company_id'
-        );
-    }
-
-    public function contentCreatorMemberships(): BelongsToMany
-    {
-        return $this->belongsToMany(
-            ContentCreator::class,
-            'content_creator_members',
-            'user_id',
-            'creator_id'
-        );
+        return $this->hasMany(OtpVerification::class, 'phone', 'phone');
     }
 
     // JWT Methods

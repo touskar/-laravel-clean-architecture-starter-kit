@@ -20,7 +20,7 @@ use Symfony\Component\Uid\Ulid;
  * @property string|null $first_name
  * @property string|null $last_name
  * @property string|null $address
- * @property string|null $user_type (PLATFORM_ADMIN, ADVERTISER, CONTENT_CREATOR)
+ * @property string|null $user_type (PLATFORM_ADMIN, USER)
  * @property int $attempt_count
  * @property bool $verified
  * @property \Carbon\Carbon $expires_at

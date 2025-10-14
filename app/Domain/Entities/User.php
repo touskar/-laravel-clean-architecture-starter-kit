@@ -20,9 +20,6 @@ class User
         public ?string $address = null,
         public ?string $userType = null,
         public ?string $status = null,
-        public ?Country $country = null,
-        public ?ContentCreator $contentCreator = null,
-        public ?AdvertiserCompany $advertiserCompany = null,
         public ?\DateTimeImmutable $createdAt = null,
         public ?\DateTimeImmutable $updatedAt = null
     ) {
@@ -31,16 +28,6 @@ class User
     public function isActive(): bool
     {
         return $this->status === 'ACTIVE';
-    }
-
-    public function isContentCreator(): bool
-    {
-        return $this->userType === 'CONTENT_CREATOR';
-    }
-
-    public function isAdvertiser(): bool
-    {
-        return $this->userType === 'ADVERTISER';
     }
 
     public function isPlatformAdmin(): bool

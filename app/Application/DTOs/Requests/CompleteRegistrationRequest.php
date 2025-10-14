@@ -77,9 +77,9 @@ class CompleteRegistrationRequest
         }
 
         if (empty($this->userType)) {
-            $errors['userType'] = 'Le type d\'utilisateur est requis';
-        } elseif (!in_array($this->userType, ['ADVERTISER', 'CONTENT_CREATOR'])) {
-            $errors['userType'] = 'Le type d\'utilisateur doit être ADVERTISER ou CONTENT_CREATOR';
+            $errors['userType'] = 'User type is required';
+        } elseif (!in_array($this->userType, ['USER', 'PLATFORM_ADMIN'])) {
+            $errors['userType'] = 'User type must be USER or PLATFORM_ADMIN';
         }
 
         return $errors;
