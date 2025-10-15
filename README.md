@@ -348,6 +348,99 @@ The `User` entity comes pre-configured with:
 | `lte` | `createdAt:lte=2024-12-31` | Less than or equal |
 | `like` | `name:like=john` | Pattern match |
 
+### Nested Relation Filtering
+
+The QueryFilterService supports **multi-level nested relation filtering** using dot notation. This allows you to filter and search on deeply nested relationships without writing custom query logic.
+
+#### How It Works
+
+When you use dot notation in filterable or searchable fields (e.g., `relation.subRelation.field`), the QueryFilterService automatically:
+
+1. **Detects the dot notation** in the field name
+2. **Splits the field** into relation path and final field name
+3. **Uses `whereHas`** to query the relationship properly
+4. **Applies the filter operator** on the nested field
+
+#### Examples
+
+**Filter by nested relation:**
+```http
+GET /api/products?filters[category.type]=ELECTRONICS&filters[supplier.country.code]=US
+```
+
+**Search in nested relations:**
+```http
+GET /api/orders?search=premium
+# Searches in order fields AND nested customer.companyName, customer.contactPerson.name, etc.
+```
+
+**Filter with operators on nested fields:**
+```http
+GET /api/campaigns?filters[socialNetwork.followers:gte]=10000
+```
+
+#### Setting Up Nested Filters
+
+**1. Define nested filterable fields in your Entity:**
+```php
+// app/Domain/Entities/Campaign.php
+protected static array $filterableFields = [
+    'status' => ['type' => 'string'],
+    'socialNetwork.id' => ['type' => 'string'],  // Nested relation
+    'socialNetwork.followers' => ['type' => 'integer'],  // Nested with operators
+];
+```
+
+**2. Define nested searchable fields:**
+```php
+protected static array $searchableFields = [
+    'name',
+    'description',
+    'creator.firstName',  // Search in related creator's firstName
+    'creator.lastName',   // Search in related creator's lastName
+];
+```
+
+**3. Map nested fields in your Repository:**
+```php
+$fieldMapping = [
+    'createdAt' => 'created_at',
+    'socialNetwork.id' => 'contentCreatorSocialNetwork.social_network_id',
+    'socialNetwork.followers' => 'contentCreatorSocialNetwork.follower_count',
+];
+```
+
+**4. Use in your API request:**
+```http
+GET /api/campaigns?filters[socialNetwork.id]=abc123&search=john
+```
+
+#### Technical Implementation
+
+The QueryFilterService uses `whereHas` for nested filtering:
+
+```php
+// For: filters[relation.subRelation.field]=value
+// Generates:
+$query->whereHas('relation.subRelation', function($q) use ($field, $value) {
+    $q->where($field, '=', $value);
+});
+
+// For search with OR: search=term in relation.field
+// Generates:
+$query->orWhereHas('relation', function($q) use ($field, $term) {
+    $q->where($field, 'LIKE', "%$term%");
+});
+```
+
+#### Supported Features
+
+- ✅ **Multi-level nesting**: `relation.subRelation.subSubRelation.field`
+- ✅ **All filter operators**: `=`, `in`, `gt`, `gte`, `lt`, `lte`, `like`
+- ✅ **Search across nested relations**: Automatic OR conditions
+- ✅ **Proper relationship eager loading**: No N+1 queries
+- ✅ **Field mapping support**: Map domain fields to database columns
+
 📚 **Full Documentation**: See [`docs/REUSABLE_FILTER_SYSTEM.md`](docs/REUSABLE_FILTER_SYSTEM.md) and [`docs/FILTER_SYSTEM_API_EXAMPLES.md`](docs/FILTER_SYSTEM_API_EXAMPLES.md)
 
 ## 📡 API Endpoints
