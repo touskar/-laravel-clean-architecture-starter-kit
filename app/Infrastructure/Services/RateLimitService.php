@@ -36,8 +36,8 @@ class RateLimitService implements IRateLimitService
         try {
             $cacheKey = "ratelimit:{$key}";
 
-            // Get current count
-            $currentCount = Cache::get($cacheKey, 0);
+            // Get current count (ensure it's an integer)
+            $currentCount = (int) Cache::get($cacheKey, 0);
 
             // Check if limit exceeded
             if ($currentCount >= $maxRequests) {
@@ -55,7 +55,7 @@ class RateLimitService implements IRateLimitService
                 Cache::put($cacheKey, $newCount, now()->addSeconds($windowSeconds));
             } else {
                 // Subsequent requests - preserve existing expiration
-                $ttl = Cache::get("{$cacheKey}:ttl", $windowSeconds);
+                $ttl = (int) Cache::get("{$cacheKey}:ttl", $windowSeconds);
                 Cache::put($cacheKey, $newCount, now()->addSeconds($ttl));
             }
 
@@ -90,7 +90,7 @@ class RateLimitService implements IRateLimitService
     {
         try {
             $cacheKey = "ratelimit:{$key}";
-            $currentCount = Cache::get($cacheKey, 0);
+            $currentCount = (int) Cache::get($cacheKey, 0);
 
             return max(0, $maxRequests - $currentCount);
         } catch (\Exception $e) {
@@ -112,7 +112,7 @@ class RateLimitService implements IRateLimitService
     {
         try {
             $cacheKey = "ratelimit:{$key}:ttl";
-            $ttl = Cache::get($cacheKey, 0);
+            $ttl = (int) Cache::get($cacheKey, 0);
 
             return max(0, $ttl);
         } catch (\Exception $e) {
